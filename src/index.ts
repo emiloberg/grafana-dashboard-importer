@@ -13,11 +13,6 @@ export type CleanRule = [
   applyFn: (existingValue: any) => any,
 ];
 
-const RULES: CleanRule[] = [
-  //   ["title", () => ""],
-  ["uid", () => ""],
-];
-
 const getExistingDashboard = async (path: string) => {
   const existingFileStr = await fs.promises.readFile(path, "utf8");
 
@@ -68,7 +63,7 @@ const go = async () => {
   const importPanels = await getImportPanels(config.importDir);
 
   for (const panels of importPanels) {
-    const cleanedImportPanels = applyOnJSONField(panels, RULES);
+    const cleanedImportPanels = applyOnJSONField(panels, config.rules);
     const output = {
       ...existingDashboard,
       panels: cleanedImportPanels,
