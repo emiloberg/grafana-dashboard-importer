@@ -1,0 +1,5 @@
+{
+  "dashboardFile": "./existing/overview.json",
+  "importDir": "./import",
+  "rules": [["uid", ""]]
+}

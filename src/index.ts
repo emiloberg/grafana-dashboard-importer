@@ -1,15 +1,12 @@
-import { fileURLToPath } from "url";
 import fs from "node:fs";
 import pathMod from "node:path";
-import { inspect } from "node:util";
 
-import { randomUUID } from "node:crypto";
 import { applyOnJSONField } from "./cleanExisting.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = pathMod.dirname(__filename);
-
-const HELM_VARIABLE_PATTERN = /\{\{ ?.*? ?\}\}/g;
+import {
+  replacePlaceholdersWithVariables,
+  replaceVariablesWithPlaceholders,
+} from "./replaceVariables.js";
+import { getConfig } from "./getConfig.js";
 
 export type CleanRule = [
   fieldKey: string,
@@ -21,40 +18,13 @@ const RULES: CleanRule[] = [
   ["uid", () => ""],
 ];
 
-const variableMap = new Map<string, string>();
+const getExistingDashboard = async (path: string) => {
+  const existingFileStr = await fs.promises.readFile(path, "utf8");
 
-const getVariableReplacement = (variable: string): string => {
-  const existing = variableMap.get(variable);
-  if (existing) {
-    return existing;
-  }
-
-  const uuid = randomUUID();
-  variableMap.set(variable, uuid);
-  return uuid;
-};
-
-const replaceVariablesWithPlaceholders = (str: string): string => {
-  let replacedString = str;
-  const matches = replacedString.matchAll(HELM_VARIABLE_PATTERN);
-
-  for (const [key] of matches) {
-    const replacement = getVariableReplacement(key);
-    replacedString = replacedString.replaceAll(key, replacement);
-  }
-
-  return replacedString;
-};
-
-const getExistingDashboard = async () => {
-  const pathExisting = pathMod.join(
-    __dirname,
-    "..",
-    "existing",
-    "overview.json"
-  );
-  const existingFileStr = await fs.promises.readFile(pathExisting, "utf8");
-
+  /**
+   * Before parsing it, we need to replace any Helm variables with placeholders,
+   * as the variables may not be valid JSON.
+   */
   const replacedExistingFileStr =
     replaceVariablesWithPlaceholders(existingFileStr);
 
@@ -63,27 +33,52 @@ const getExistingDashboard = async () => {
   return existingJSON;
 };
 
-const getImportPanels = async () => {
-  const pathImport = pathMod.join(__dirname, "..", "import", "import.json");
-  const importFileStr = await fs.promises.readFile(pathImport, "utf8");
-  const importJSONPanels = JSON.parse(importFileStr).panels;
-  return importJSONPanels;
+const getImportPanels = async (path: string) => {
+  const filePaths = await fs.promises.readdir(path);
+
+  const jsonFilePaths = filePaths.filter((file) => file.endsWith(".json"));
+
+  const jsonFileContents = await Promise.all(
+    jsonFilePaths.map(async (file) => {
+      try {
+        const filePath = pathMod.join(path, file);
+        console.log("Importing " + filePath);
+        const fileContents = await fs.promises.readFile(filePath, "utf8");
+        const parsed = JSON.parse(fileContents).panels;
+        return parsed;
+      } catch (_) {
+        console.log("Error reading import file " + file);
+        process.exit(1);
+      }
+    })
+  );
+
+  return jsonFileContents;
+};
+
+const writeOutput = async (output: string, outputPath: string) => {
+  await fs.promises.writeFile(outputPath, output);
+  console.log("Wrote dashboard " + outputPath);
 };
 
 const go = async () => {
-  const existingDashboard = await getExistingDashboard();
-  const importPanels = await getImportPanels();
+  const config = await getConfig();
 
-  const cleanedImportPanels = applyOnJSONField(importPanels, RULES);
+  const existingDashboard = await getExistingDashboard(config.dashboardFile);
+  const importPanels = await getImportPanels(config.importDir);
 
-  console.log(
-    inspect(cleanedImportPanels, {
-      showHidden: true,
-      depth: null,
-      colors: true,
-      breakLength: 200,
-    })
-  );
+  for (const panels of importPanels) {
+    const cleanedImportPanels = applyOnJSONField(panels, RULES);
+    const output = {
+      ...existingDashboard,
+      panels: cleanedImportPanels,
+    };
+    const outputStr = JSON.stringify(output, null, 2);
+    const replacedOutputStr = replacePlaceholdersWithVariables(outputStr);
+    await writeOutput(replacedOutputStr, config.dashboardFile);
+  }
+
+  console.log("Done!");
 };
 
 go();
