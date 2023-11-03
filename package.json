@@ -1,0 +1,21 @@
+{
+  "name": "grafana-dashboard-importer",
+  "version": "1.0.0",
+  "description": "Takes an export from the Grafana web UI, cleans it, and saves as file in your repo",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node --no-warnings=ExperimentalWarning --loader tsm --watch src/index.ts"
+  },
+  "author": "",
+  "type": "module",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.8.10",
+    "tsm": "^2.3.0",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "prettier": "^3.0.3"
+  }
+}
