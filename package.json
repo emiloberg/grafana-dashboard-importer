@@ -5,13 +5,15 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "node --no-warnings=ExperimentalWarning --loader tsm --watch src/index.ts"
+    "dev": "node --no-warnings=ExperimentalWarning --loader tsm --watch src/index.ts",
+    "build": "tsc && ncc build -o .build2 .build/index.js && pkg ./.build2/index.js --out-path ./bin"
   },
   "author": "",
-  "type": "module",
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^20.8.10",
+    "@vercel/ncc": "^0.38.1",
+    "pkg": "^5.8.1",
     "prettier": "^3.0.3",
     "tsm": "^2.3.0",
     "typescript": "^5.2.2"
